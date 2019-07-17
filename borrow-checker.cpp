@@ -20,7 +20,7 @@ template <typename T>
 class owned {
 public:
 	owned(T&& a) : thing(a), borrowed_mut_flag(false), borrowed_immut(0) {}
-	T& operator*() {
+	const T& operator*() {
         if (borrowed_mut_flag) terminate();
         if (borrowed_immut) terminate();
         if (!thing.has_value()) terminate();
@@ -50,7 +50,7 @@ public:
     ~new_owner() {
         original.thing.reset();
     }
-    T& operator*() {
+    const T& operator*() {
         return *original;
     }
 	borrowed<T> borrow() { return original.borrowed(*this); }
@@ -79,7 +79,7 @@ public:
         if (original.borrowed_mut_flag) terminate();
         original.borrowed_immut++;
     }
-	T& operator*() {
+	const T& operator*() {
         if (original.borrowed_mut_flag) terminate();
         if (!original.thing.has_value()) terminate();
         return *original.thing;
