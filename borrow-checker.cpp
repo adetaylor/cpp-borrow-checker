@@ -19,7 +19,8 @@ class borrowed_mut;
 template <typename T>
 class owned {
 public:
-	owned(T&& a) : thing(a), borrowed_mut_flag(false), borrowed_immut(0) {}
+    template <typename... A>
+    owned(A... args) : thing(std::in_place, std::forward<A>(args)...), borrowed_mut_flag(false), borrowed_immut(0) {}
 	const T& operator*() {
         if (borrowed_mut_flag) terminate();
         if (borrowed_immut) terminate();
@@ -119,10 +120,26 @@ private:
 	bool valid; // starts true
 };
 
+
 class Example {
 public:
-    ~Example() { std::cout << "Destructor\n"; };
+    Example() { std::cout << "Example constructor\n"; };
+    ~Example() { std::cout << "Example destructor\n"; };
+    void change() { std::cout << "Example mutating\n"; }
     friend std::ostream& operator<<(std::ostream& os, const Example& example);
+};
+
+class Example2 {
+public:
+    ~Example2() { std::cout << "Example2 destructor\n"; };
+    void change() { std::cout << "Example2 mutating\n"; }
+    friend std::ostream& operator<<(std::ostream& os, const Example2& example);
+    // TODO: work out how to make a class not constructible except
+    // via owned<T>
+    //friend class std::optional<Example2>;
+    //friend class std::is_constructible<Example2>;
+//private:
+    Example2() { std::cout << "Example2 constructor\n"; };
 };
 
 std::ostream& operator<<(std::ostream& os, const Example& e)
@@ -130,9 +147,23 @@ std::ostream& operator<<(std::ostream& os, const Example& e)
     os << "Example\n";
     return os;
 }
+std::ostream& operator<<(std::ostream& os, const Example2& e)
+{
+    os << "Example2\n";
+    return os;
+}
+
+void handle_borrowed_mut(borrowed_mut<Example> another) {
+    std::cout << "Borrowed_mut: " << *another;
+    (*another).change();
+}
 
 void handle_borrowed(borrowed<Example> another) {
     std::cout << "Borrowed: " << *another;
+}
+
+void handle_borrowed_nested(borrowed<Example> another) {
+    handle_borrowed(another);
 }
 
 void handle_owned(new_owner<Example> another) {
@@ -142,11 +173,16 @@ void handle_owned(new_owner<Example> another) {
 }
 
 int main(void) {
-    owned<Example> original(std::move(Example{}));
+    owned<Example> original;
     std::cout << *original;
     handle_borrowed(original);
-    handle_borrowed(original);
+    handle_borrowed_nested(original);
+    (*(original.borrow_mut())).change();
+    handle_borrowed_mut(original);
     handle_owned(std::move(original));
+
+    owned<Example2> original2;
+
     std::cout << "Next line should crash\n";
     std::cout << *original;
     std::cout << "Still running\n";
