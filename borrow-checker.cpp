@@ -29,6 +29,11 @@ public:
     }
 	borrowed<T> borrow() { return borrowed(*this); }
 	borrowed_mut<T> borrow_mut() { return borrowed_mut(*this); }
+    ~owned() {
+        // Avoid UaFs.
+        if (borrowed_immut) terminate();
+        if (borrowed_mut_flag) terminate();
+    }
 private:
 	std::optional<T> thing;
 	bool borrowed_mut_flag;
@@ -80,6 +85,10 @@ public:
         if (original.borrowed_mut_flag) terminate();
         original.borrowed_immut++;
     }
+	borrowed(borrowed<T>&& thing) : original(thing.original) {
+        if (original.borrowed_mut_flag) terminate();
+        original.borrowed_immut++;
+    }
 	const T& operator*() {
         if (original.borrowed_mut_flag) terminate();
         if (!original.thing.has_value()) terminate();
@@ -123,10 +132,12 @@ private:
 
 class Example {
 public:
-    Example() { std::cout << "Example constructor\n"; };
-    ~Example() { std::cout << "Example destructor\n"; };
-    void change() { std::cout << "Example mutating\n"; }
+    Example(int _id) : id(_id) { std::cout << "Example constructor << " << id << "\n"; };
+    ~Example() { std::cout << "Example destructor " << id << "\n"; };
+    void change() { std::cout << "Example mutating " << id << "\n"; }
     friend std::ostream& operator<<(std::ostream& os, const Example& example);
+private:
+    int id;
 };
 
 class Example2 {
@@ -144,7 +155,7 @@ public:
 
 std::ostream& operator<<(std::ostream& os, const Example& e)
 {
-    os << "Example\n";
+    os << "Example " << e.id << "\n";
     return os;
 }
 std::ostream& operator<<(std::ostream& os, const Example2& e)
@@ -172,8 +183,12 @@ void handle_owned(new_owner<Example> another) {
     std::cout << "Still owned: " << *another;
 }
 
+struct MoreStuff {
+    std::unique_ptr<borrowed<Example>> example_borrow;
+};
+
 int main(void) {
-    owned<Example> original;
+    owned<Example> original(1);
     std::cout << *original;
     handle_borrowed(original);
     handle_borrowed_nested(original);
@@ -181,10 +196,15 @@ int main(void) {
     handle_borrowed_mut(original);
     handle_owned(std::move(original));
 
-    owned<Example2> original2;
-
     std::cout << "Next line should crash\n";
-    std::cout << *original;
-    std::cout << "Still running\n";
+    //std::cout << *original;
+
+    MoreStuff more;
+    {
+        owned<Example> foo(2);
+        more.example_borrow = std::make_unique<borrowed<Example>>(foo.borrow());
+        std::cout << "Next line should crash\n";
+    }
+
     return 0;
 }
