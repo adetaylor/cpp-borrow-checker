@@ -2,10 +2,13 @@
 #include <string>
 #include <optional>
 
+// Placeholder termination function
 void terminate() {
     std::cout << "DOOM\n";
     std::abort();
 }
+
+// Forward declarations
 
 template <typename T>
 class borrowed;
@@ -16,6 +19,7 @@ class new_owner;
 template <typename T>
 class borrowed_mut;
 
+// An object owned at the current location.
 template <typename T>
 class owned {
 public:
