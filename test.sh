@@ -1,3 +1,3 @@
 #!/bin/sh
 
-g++ borrow-checker.cpp -std=c++1z  && ./a.out
+g++ example.cpp -std=c++1z  && ./a.out
